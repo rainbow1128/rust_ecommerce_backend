@@ -1,9 +1,13 @@
+use std::env;
+
 use actix_web::{get, post, web, HttpResponse, Responder};
 use argon2::{
     password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
     Argon2,
 };
 
+use chrono::{Duration, Utc};
+use jsonwebtoken::{encode, EncodingKey, Header};
 use mongodb::{bson::doc, Collection};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -16,7 +20,13 @@ pub struct LoginUser {
     password: String,
 }
 
-#[get("/api/data")]
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Claims {
+    pub id: String,
+    pub username: String,
+    pub exp: i64,
+}
+
 pub async fn get_data(
     web::Json(data): web::Json<serde_json::Value>,
     db: web::Data<Collection<User>>,
@@ -72,11 +82,17 @@ pub async fn login(
 
     match user {
         Ok(Some(doc)) => {
-            let verified = verify_password(&password, doc.password).await.unwrap();
+            let verified = verify_password(&password, doc.password.clone())
+                .await
+                .unwrap();
             if !verified {
                 HttpResponse::NotFound().body("Invalid Credentials")
             } else {
-                HttpResponse::Ok().body("Documentfound")
+                let jwt_token = generate_jwt(&doc).expect("Failed to generate JWT");
+
+                HttpResponse::Ok().json(json!({
+                    "access_token":jwt_token,
+                }))
             }
         }
         Ok(None) => HttpResponse::NotFound().body("User not found"),
@@ -104,4 +120,23 @@ async fn verify_password(
     let result = Argon2::default().verify_password(password.as_bytes(), &parsed_hash);
 
     Ok(result.is_ok())
+}
+
+// Generate a JWT for the user
+fn generate_jwt(user: &User) -> Result<String, jsonwebtoken::errors::Error> {
+    // Define the payload of the JWT
+    let claims = Claims {
+        id: user.id.unwrap().to_string(),
+        username: user.username.clone(),
+        exp: (Utc::now() + Duration::hours(1)).timestamp(),
+    };
+
+    // Encode the JWT
+    let secret_key = env::var("SECRET_KEY").expect("SECRET_KEY must be set in .env");
+    let encoding_key = EncodingKey::from_secret(secret_key.as_bytes());
+
+    // Generate the JWT token
+    let token = encode(&Header::default(), &claims, &encoding_key)?;
+
+    Ok(token)
 }

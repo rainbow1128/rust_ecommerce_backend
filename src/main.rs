@@ -6,10 +6,15 @@ mod api {
     pub mod users_api;
 }
 
+mod middleware {
+    pub mod auth_middleware;
+}
+
 use actix_web::{web, App, HttpServer};
 use api::users_api::{get_data, login, register};
 use dotenv::dotenv;
 use log::info;
+use middleware::auth_middleware::SayHi;
 use models::user::User;
 use mongodb::{options::ClientOptions, Client, Collection};
 use std::env;
@@ -32,14 +37,21 @@ async fn main() -> std::io::Result<()> {
 
     let user_collections: Collection<User> = db.collection("users");
 
-    HttpServer::new(move || {
+    let server = HttpServer::new(move || {
         App::new()
             .app_data(web::Data::new(user_collections.clone()))
-            .service(get_data)
+            .service(
+                web::scope("/api/users")
+                    .wrap(SayHi)
+                    .route("/me", web::get().to(get_data)),
+            )
             .service(login)
             .service(register)
     })
-    .bind("127.0.0.1:8000")?
-    .run()
-    .await
+    .bind("127.0.0.1:8000")?;
+
+    // Print a message when the server starts listening
+    println!("Server is up and running at http://127.0.0.1:8080");
+
+    server.run().await
 }
