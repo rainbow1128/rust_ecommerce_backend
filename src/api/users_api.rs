@@ -38,7 +38,7 @@ pub async fn get_data(req: HttpRequest, db: web::Data<Collection<User>>) -> impl
         .cloned()
         .ok_or_else(|| HttpResponse::InternalServerError().body("Invalid request state"));
 
-    let id = ObjectId::parse_str(&id.unwrap())
+    let id = ObjectId::parse_str(id.unwrap())
         .map_err(|_| HttpResponse::InternalServerError().body("Invalid ID format"));
 
     let query = doc! {"_id":id.unwrap()};
@@ -56,10 +56,8 @@ pub async fn get_data(req: HttpRequest, db: web::Data<Collection<User>>) -> impl
 
             HttpResponse::Ok().json(response_data)
         }
-        Ok(None) => HttpResponse::NotFound().body("Document not found").into(),
-        Err(_) => HttpResponse::InternalServerError()
-            .body("Error finding document")
-            .into(),
+        Ok(None) => HttpResponse::NotFound().body("Document not found"),
+        Err(_) => HttpResponse::InternalServerError().body("Error finding document"),
     }
 }
 
@@ -68,7 +66,7 @@ pub async fn register(
     web::Json(user): web::Json<User>,
     db: web::Data<Collection<User>>,
 ) -> impl Responder {
-    let hashed_result = hash_password(&user.password.as_str()).await.unwrap();
+    let hashed_result = hash_password(user.password.as_str()).await.unwrap();
 
     let user_with_hashed_password = User {
         password: hashed_result,

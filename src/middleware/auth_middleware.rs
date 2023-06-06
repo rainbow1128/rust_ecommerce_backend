@@ -60,7 +60,7 @@ where
                 }
             });
 
-        let verification = verify_jwt(&token.unwrap().to_string());
+        let verification = verify_jwt(&token.unwrap());
 
         req.extensions_mut().insert(verification.unwrap().id);
 
