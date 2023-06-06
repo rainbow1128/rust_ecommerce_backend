@@ -14,7 +14,7 @@ use actix_web::{web, App, HttpServer};
 use api::users_api::{get_data, login, register};
 use dotenv::dotenv;
 use log::info;
-use middleware::auth_middleware::SayHi;
+use middleware::auth_middleware::AuthMiddleWare;
 use models::user::User;
 use mongodb::{options::ClientOptions, Client, Collection};
 use std::env;
@@ -41,9 +41,9 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .app_data(web::Data::new(user_collections.clone()))
             .service(
-                web::scope("/api/users")
-                    .wrap(SayHi)
-                    .route("/me", web::get().to(get_data)),
+                web::resource("/api/users/me")
+                    .route(web::get().to(get_data))
+                    .wrap(AuthMiddleWare),
             )
             .service(login)
             .service(register)

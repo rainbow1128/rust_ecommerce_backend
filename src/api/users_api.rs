@@ -1,6 +1,6 @@
 use std::env;
 
-use actix_web::{get, post, web, HttpResponse, Responder};
+use actix_web::{post, web, HttpMessage, HttpRequest, HttpResponse, Responder};
 use argon2::{
     password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
     Argon2,
@@ -8,7 +8,10 @@ use argon2::{
 
 use chrono::{Duration, Utc};
 use jsonwebtoken::{encode, EncodingKey, Header};
-use mongodb::{bson::doc, Collection};
+use mongodb::{
+    bson::{doc, oid::ObjectId},
+    Collection,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
@@ -27,13 +30,18 @@ pub struct Claims {
     pub exp: i64,
 }
 
-pub async fn get_data(
-    web::Json(data): web::Json<serde_json::Value>,
-    db: web::Data<Collection<User>>,
-) -> impl Responder {
-    let email = data["email"].as_str().unwrap_or_default();
+// api/users/me
+pub async fn get_data(req: HttpRequest, db: web::Data<Collection<User>>) -> impl Responder {
+    let id = req
+        .extensions()
+        .get::<String>()
+        .cloned()
+        .ok_or_else(|| HttpResponse::InternalServerError().body("Invalid request state"));
 
-    let query = doc! {"email":email};
+    let id = ObjectId::parse_str(&id.unwrap())
+        .map_err(|_| HttpResponse::InternalServerError().body("Invalid ID format"));
+
+    let query = doc! {"_id":id.unwrap()};
     let result = db.find_one(query, None).await;
 
     match result {
@@ -48,12 +56,14 @@ pub async fn get_data(
 
             HttpResponse::Ok().json(response_data)
         }
-        Ok(None) => HttpResponse::NotFound().body("Document not found"),
-        Err(_) => HttpResponse::InternalServerError().body("Error finding document"),
+        Ok(None) => HttpResponse::NotFound().body("Document not found").into(),
+        Err(_) => HttpResponse::InternalServerError()
+            .body("Error finding document")
+            .into(),
     }
 }
 
-#[post("/api/users")]
+#[post("/api/users/register")]
 pub async fn register(
     web::Json(user): web::Json<User>,
     db: web::Data<Collection<User>>,
@@ -73,7 +83,7 @@ pub async fn register(
     }
 }
 
-#[post("/api/login")]
+#[post("/api/users/login")]
 pub async fn login(
     web::Json(LoginUser { email, password }): web::Json<LoginUser>,
     db: web::Data<Collection<User>>,

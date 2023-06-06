@@ -5,16 +5,16 @@ use std::{
 
 use actix_web::{
     dev::{forward_ready, Service, ServiceRequest, ServiceResponse, Transform},
-    Error, HttpResponse,
+    Error, HttpMessage,
 };
 use futures_util::future::LocalBoxFuture;
 use jsonwebtoken::{decode, DecodingKey, Validation};
 
 use crate::api::users_api::Claims;
 
-pub struct SayHi;
+pub struct AuthMiddleWare;
 
-impl<S, B> Transform<S, ServiceRequest> for SayHi
+impl<S, B> Transform<S, ServiceRequest> for AuthMiddleWare
 where
     S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error>,
     S::Future: 'static,
@@ -23,19 +23,19 @@ where
     type Response = ServiceResponse<B>;
     type Error = Error;
     type InitError = ();
-    type Transform = SayHiMiddleware<S>;
+    type Transform = AuthMiddlewareService<S>;
     type Future = Ready<Result<Self::Transform, Self::InitError>>;
 
     fn new_transform(&self, service: S) -> Self::Future {
-        ready(Ok(SayHiMiddleware { service }))
+        ready(Ok(AuthMiddlewareService { service }))
     }
 }
 
-pub struct SayHiMiddleware<S> {
+pub struct AuthMiddlewareService<S> {
     service: S,
 }
 
-impl<S, B> Service<ServiceRequest> for SayHiMiddleware<S>
+impl<S, B> Service<ServiceRequest> for AuthMiddlewareService<S>
 where
     S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error>,
     S::Future: 'static,
@@ -60,15 +60,12 @@ where
                 }
             });
 
-        // let verification = verify_jwt(&token.unwrap().to_string());
+        let verification = verify_jwt(&token.unwrap().to_string());
 
-        let fut = match verify_jwt(&token.unwrap().to_string()) {
-            Ok(claims) => {
-                println!("{:?}", claims);
-                self.service.call(req)
-            }
-            Err(_) => todo!(),
-        };
+        req.extensions_mut().insert(verification.unwrap().id);
+
+        let fut = self.service.call(req);
+
         Box::pin(async move {
             let res = fut.await?;
 
