@@ -29,6 +29,7 @@ pub struct Product {
     pub seo_description: Option<String>,
     pub information: Option<Vec<Information>>,
     pub related: Option<Vec<Product>>,
+    pub review: Review,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -43,6 +44,15 @@ pub struct Dimension {
 pub struct Information {
     pub key: String,
     pub value: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Review {
+    pub name: String,
+    pub rating: i32,
+    pub comment: String,
+    pub published: bool,
+    pub user: ObjectId,
 }
 
 impl Default for Product {
@@ -78,6 +88,13 @@ impl Default for Product {
             seo_description: None,
             information: None,
             related: None,
+            review: Review {
+                name: String::default(),
+                rating: i32::default(),
+                comment: String::default(),
+                published: false,
+                user: ObjectId::default(),
+            },
         }
     }
 }
