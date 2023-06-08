@@ -5,7 +5,7 @@ use std::{
 
 use actix_web::{
     dev::{forward_ready, Service, ServiceRequest, ServiceResponse, Transform},
-    Error, HttpMessage,
+    Error, HttpMessage, HttpResponse,
 };
 use futures_util::future::LocalBoxFuture;
 use jsonwebtoken::{decode, DecodingKey, Validation};

@@ -6,7 +6,7 @@ pub struct Product {
     #[serde(rename = "_id", skip_serializing_if = "Option::is_none")]
     pub id: Option<ObjectId>,
     pub name: String,
-    pub source: String,
+    pub source: Option<String>,
     pub removed_status: bool,
     pub order_limit: Option<i32>,
     pub new_arrival: bool,
@@ -60,7 +60,7 @@ impl Default for Product {
         Product {
             id: None,
             name: String::default(),
-            source: String::default(),
+            source: None,
             removed_status: false,
             order_limit: Some(5),
             new_arrival: false,

@@ -10,4 +10,19 @@ pub struct User {
     pub email: String,
     pub password: String,
     pub phone_number: String,
+    pub roles: Option<Vec<ObjectId>>,
+}
+
+impl Default for User {
+    fn default() -> Self {
+        User {
+            id: None,
+            username: String::default(),
+            full_name: String::default(),
+            email: String::default(),
+            password: String::default(),
+            phone_number: String::default(),
+            roles: None,
+        }
+    }
 }
